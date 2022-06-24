@@ -14,14 +14,22 @@
         <dd>任务节点</dd>
       </dl>
       <dl>
-        <dt>
-          <svg-icon :icon-class="'agv'" @mousedown="startDragToGraph('agvNode', $event)" />
-        </dt>
-        <dd>AGV</dd>
-      </dl>
-      <dl>
         <el-button @click="getData">获取数据</el-button>
       </dl>
+      <el-collapse v-model="nodesCollapse">
+        <el-collapse-item :title="nodes.label" :name="nodes.type" v-for="(nodes, index) in nodesList" :key="nodes.type + index">
+          <el-row :gutter="5">
+            <el-col v-show="node.isShow" :span="8" v-for="(node, index) in nodes.children" :key="node.shape + '' + index" class="node-warp">
+              <div class="node-card">
+                <span class="svg-box">
+                  <designer-img :img-type="node.data.actionType" class="img-wh" @mousedown="startDrag(node, $event)" />
+                </span>
+                <p>{{ node.label }}</p>
+              </div>
+            </el-col>
+          </el-row>
+        </el-collapse-item>
+      </el-collapse>
     </div>
     <div class="mini-map-container" ref="miniMapContainerRef"></div>
     <div class="container" ref="containerRef"></div>
@@ -47,14 +55,14 @@
 </template>
 
 <script>
-import '@antv/x6-vue-shape'
-import { Graph, Shape, FunctionExt, Addon, DataUri } from '@antv/x6'
-import { ports } from './graph/methods'
-import StartNode from './components/StartNode'
-import EndNode from './components/EndNode'
-import TaskNode from './components/TaskNode'
-import RightDrawer from './components/RightDrawer'
-import SvgIcon from './components/SvgIcon'
+import '@antv/x6-vue-shape';
+import { Graph, Shape, FunctionExt, Addon, DataUri } from '@antv/x6';
+import { ports } from './graph/methods';
+import registerNodes from "./graph/registerNodes";
+import eventListener from "./graph/event";
+import bindKey from "./graph/bindKey";
+import { nodesList } from "./graph/nodesBar";
+import RightDrawer from './components/RightDrawer';
 
 export default {
   components: {
@@ -62,6 +70,7 @@ export default {
   },
   data() {
     return {
+      dnd: {},
       graph: null,
       selectCell: '',
       canRedo: false,
@@ -69,25 +78,32 @@ export default {
       canZoomOut: true,
       showRight: false,
       nodeData: [],
-      nodeId: ''
+      nodeId: '',
+      nodesCollapse: 'equipment-com',
+      nodesList,
     }
   },
   mounted() {
-    this.initAntvX6()
+    this.initAntvX6();
+    this.initDnd();
   },
   methods: {
+    // 初始化拖拽插件
+    initDnd() {
+      this.dnd = new Addon.Dnd({
+        target: this.graph,
+        validateNode(node) {
+          console.log(node);
+          return true;
+        },
+      });
+    },
     initAntvX6() {
-      const self = this
-      const containerRef = this.$refs.containerRef
-      const miniMapContainerRef = this.$refs.miniMapContainerRef
+      const containerRef = this.$refs.containerRef;
+      const miniMapContainerRef = this.$refs.miniMapContainerRef;
       const graph = new Graph({
         container: containerRef, // 画布的容器
-        selecting: true,
-        snapline: true, // 对齐线
-        history: true, // 启动历史记录
-        background: {
-          color: '#ffffff'
-        },
+        autoResize: true,
         // 网格
         grid: {
           size: 10,
@@ -105,12 +121,23 @@ export default {
             }
           ]
         },
-        // Scroller 使画布具备滚动、平移、居中、缩放等能力
-        scroller: {
+        background: {
+          color: '#ffffff'
+        },
+        snapline: {
           enabled: true,
-          pageVisible: true,
-          pageBreak: true,
-          pannable: true,
+          sharp: true,
+          tolerance: 3,
+        },
+        history: true, // 启动历史记录
+        clipboard: true, // 剪切板
+        keyboard: {
+          enabled: true,
+          global: true,
+        },
+        panning: {
+          enabled: true,
+          eventTypes: ["leftMouseDown", "rightMouseDown", "mouseWheel"],
         },
         // Scroller 后可开启小地图
         minimap: {
@@ -121,8 +148,18 @@ export default {
         mousewheel: {
           enabled: true,
           modifiers: ['ctrl', 'meta'],
-          minScale: 0.5,
-          maxScale: 2
+          minScale: 0.1,
+          maxScale: 16
+        },
+        // 点选/框选，默认禁用。
+        selecting: {
+          enabled: true,
+          multiple: true,
+          movable: true,
+          showNodeSelectionBox: true,
+          following: true,
+          rubberband: true, // 启用框选
+          modifiers: "ctrl", // 组合键
         },
         // 节点连接
         connecting: {
@@ -172,149 +209,26 @@ export default {
             }
           }
         }
-      })
-      // 注册 vue 组件
-      Graph.registerVueComponent('start-node-component', {
-        template: `<start-node></start-node>`,
-        components: {
-          StartNode
-        }
-      }, true)
-      Graph.registerVueComponent('end-node-component', {
-        template: `<end-node></end-node>`,
-        components: {
-          EndNode
-        }
-      }, true)
-      Graph.registerVueComponent('task-node-component', {
-        template: `<task-node :node-data="nodeData"></task-node>`,
-        data() {
-          return {
-            nodeData: self.nodeData
-          }
-        },
-        components: {
-          TaskNode
-        }
-      }, true)
-      Graph.registerVueComponent('agv-node-component', {
-        template: `<svg-icon icon-class="agv" class-name="agv"></svg-icon>`,
-        data() {
-          return {
-            nodeData: self.nodeData
-          }
-        },
-        components: {
-          SvgIcon
-        }
-      }, true)
-      
-      this.graph = graph
+      });
+      this.graph = graph;
       // 清除 history 版本
-      this.graph.history.redo()
-      this.graph.history.undo()
-      // 监听历史版本
-      this.graph.history.on('change', () => {
-        this.canRedo = this.graph.history.canRedo()
-        this.canUndo = this.graph.history.canUndo()
-      })
-      // 是否显示右则菜单
-      this.graph.on('blank:click', () => {
-        this.nodeId = ''
-        this.showRight = false
-      })
-      // 节点点击
-      this.graph.on('node:click', ({ node }) => {
-        const data = node.store.data
-        const { type, id } = data
-        
-        if (type === 'taskNode') {
-          this.nodeId = id
-          this.showRight = true
-        } else {
-          this.nodeId = ''
-          this.showRight = false
-        }
-      })
-      // 节点鼠标移入
-      this.graph.on('node:mouseenter', FunctionExt.debounce(({ node }) => {
-          // 添加连接点
-          const ports = containerRef.querySelectorAll('.x6-port-body')
-          this.showPorts(ports, true)
-
-          // 添加删除
-          const type = node.store.data.type
-          const x = type === 'taskNode' ? 300 : 60
-          node.addTools({
-            name: 'button-remove',
-            args: {
-              x: 0,
-              y: 0,
-              offset: { x: x, y: 10 },
-            },
-          })
-        }),
-        500
-      )
-      // 节点鼠标移出
-      this.graph.on('node:mouseleave', ({ node }) => {
-        // 添加连接点
-        const ports = containerRef.querySelectorAll('.x6-port-body')
-        this.showPorts(ports, false)
-
-        // 移除删除
-        node.removeTools()
-      })
-      // 连接线鼠标移入
-      this.graph.on('edge:mouseenter', ({ edge }) => {
-        edge.addTools([
-          'source-arrowhead',
-          'target-arrowhead',
-          {
-            name: 'button-remove',
-            args: {
-              distance: -30,
-            }
-          }
-        ])
-      })
-      // 连接线鼠标移出
-      this.graph.on('edge:mouseleave', ({ edge }) => {
-        edge.removeTools()
-      })
-      // cell 节点时才触发
-      this.graph.on('node:added', ({ node }) => {
-        const data = node.store.data
-
-        if (data.type === 'taskNode') {
-          const obj = {
-            id: data.id,
-            name: '任务节点',
-            desc: '节点内容'
-          }
-          this.nodeData.push(obj)
-        }
-      })
-      this.graph.on('node:removed', ({ node }) => {
-        const data = node.store.data
-
-        if (data.type === 'taskNode') {
-          const posIndex = this.nodeData.findIndex((item) => item.id === data.id)
-          this.nodeData.splice(posIndex, 1)
-        }
-      })
-      this.graph.on('selection:changed', (args) => {
-        args.added.forEach(cell => {
-          console.log(cell)
-          this.selectCell = cell
-        })
-      })
+      this.graph.history.redo();
+      this.graph.history.undo();
+      eventListener(this, containerRef, FunctionExt);
+      registerNodes(this);
+      bindKey(this.graph);
     },
     // 显示连线节点
     showPorts (ports, show) {
       for (let i = 0, len = ports.length; i < len; i = i + 1) {
         ports[i].style.visibility = show ? 'visible' : 'hidden'
       }
+    },
+    // 开始拖拽
+    startDrag(currentTarget, event) {
+      console.log(currentTarget);
+      const node = this.graph.createNode(currentTarget);
+      this.dnd.start(node, event);
     },
     // 拖拽节点新增
     startDragToGraph(type, e) {
@@ -342,8 +256,8 @@ export default {
             height: 60,
             ports,
             component: 'start-node-component'
-          })
-          break
+          });
+          break;
         case 'endNode':
           node = graph.createNode({
             type: 'endNode',
@@ -354,42 +268,26 @@ export default {
             height: 60,
             ports,
             component: 'end-node-component'
-          })
-          break
+          });
+          break;
         case 'taskNode':
-        node = graph.createNode({
-          type: 'taskNode',
-          shape: 'vue-shape',
-          x: 300,
-          y: 300,
-          width: 300,
-          height: 121,
-          ports,
-          data: {
-            name: '任务节点',
-            desc: '节点内容'
-          },
-          component: 'task-node-component'
-        })
-        break
-        case 'agvNode':
-        node = graph.createNode({
-          type: 'agvNode',
-          shape: 'vue-shape',
-          x: 300,
-          y: 300,
-          width: 17.83,
-          height: 42,
-          data: {
-            name: 'agv',
-            desc: 'agv'
-          },
-          component: 'agv-node-component'
-        })
+          node = graph.createNode({
+            type: 'taskNode',
+            shape: 'vue-shape',
+            x: 300,
+            y: 300,
+            width: 300,
+            height: 121,
+            ports,
+            data: {
+              name: '任务节点',
+              desc: '节点内容'
+            },
+            component: 'task-node-component'
+          });
+        break;
       }
-
-      const dnd = new Addon.Dnd({ target:graph })
-      dnd.start(node, e)
+      this.dnd.start(node, e)
     },
     // 获取数据
     getData() {
@@ -466,7 +364,7 @@ export default {
 }
 </script>
 
-<style lang="scss" scoped>
+<style lang="less" scoped>
 .antv-x6 {
   width: 100%;
   height: 100%;
@@ -477,7 +375,7 @@ export default {
   -webkit-box-sizing:border-box;
   .node-c {
     width: 200px;
-    border-right: 1px solid #eee;
+    border-right: 1px solid #ccc;
     padding: 20px;
     dl {
       margin-bottom: 20px;
@@ -511,6 +409,33 @@ export default {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+    }
+    .node-warp {
+      box-sizing: border-box;
+      overflow: hidden;
+
+      .node-card {
+        > .svg-box {
+          display: inline-block;
+          width: 100%;
+          text-align: center;
+          padding: 10px 0;
+          background:rgba(0, 0, 0, 0.3);
+          /deep/ svg {
+            width: 4em;
+            height: 4em;
+            &:hover {
+              transform: scale(1.1);
+            }
+          }
+          .img-wh {
+            height: 60px;
+            &:hover {
+              transform: scale(1.1);
+            }
+          }
+        }
       }
     }
   }

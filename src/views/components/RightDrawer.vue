@@ -42,7 +42,7 @@ export default {
 }
 </script>
 
-<style lang="scss" scoped>
+<style lang="less" scoped>
 .right-drawer {
   max-width: 350px;
   min-width: 350px;

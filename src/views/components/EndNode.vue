@@ -4,7 +4,7 @@
   </div>
 </template>
 
-<style lang="scss" scoped>
+<style lang="less" scoped>
 .end-node {
   position: relative;
   i.el-icon-video-pause {
