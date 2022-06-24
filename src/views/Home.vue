@@ -18,16 +18,14 @@
       </dl>
       <el-collapse v-model="nodesCollapse">
         <el-collapse-item :title="nodes.label" :name="nodes.type" v-for="(nodes, index) in nodesList" :key="nodes.type + index">
-          <el-row :gutter="5">
-            <el-col v-show="node.isShow" :span="8" v-for="(node, index) in nodes.children" :key="node.shape + '' + index" class="node-warp">
-              <div class="node-card">
-                <span class="svg-box">
-                  <designer-img :img-type="node.data.actionType" class="img-wh" @mousedown="startDrag(node, $event)" />
-                </span>
-                <p>{{ node.label }}</p>
-              </div>
-            </el-col>
-          </el-row>
+          <div v-show="node.isShow" v-for="(node, index) in nodes.children" :key="node.shape + '' + index" class="node-warp">
+            <div class="node-card">
+              <span class="svg-box">
+                <designer-img :img-type="node.data.actionType" class="img-wh" @mousedown="startDrag(node, $event)" />
+              </span>
+              <span>{{ node.label }}</span>
+            </div>
+          </div>
         </el-collapse-item>
       </el-collapse>
     </div>
@@ -92,8 +90,7 @@ export default {
     initDnd() {
       this.dnd = new Addon.Dnd({
         target: this.graph,
-        validateNode(node) {
-          console.log(node);
+        validateNode() {
           return true;
         },
       });
@@ -106,7 +103,7 @@ export default {
         autoResize: true,
         // 网格
         grid: {
-          size: 10,
+          size: 1,
           visible: true,
           type: 'doubleMesh',
           args: [
@@ -371,12 +368,14 @@ export default {
   padding: 0;
   display: flex;
   box-sizing:border-box;
-  -moz-box-sizing:border-box;
-  -webkit-box-sizing:border-box;
   .node-c {
-    width: 200px;
+    width: 250px;
+    height: 100%;
+    box-sizing: border-box;
+    overflow-y: auto;
     border-right: 1px solid #ccc;
     padding: 20px;
+    user-select: none;
     dl {
       margin-bottom: 20px;
       line-height: 30px;
@@ -412,13 +411,18 @@ export default {
       }
     }
     .node-warp {
+      display: flex;
+      flex-wrap: wrap;
       box-sizing: border-box;
       overflow: hidden;
 
       .node-card {
+        display: inline-block;
+        width: 65px;
         > .svg-box {
           display: inline-block;
           width: 100%;
+          height: 60px;
           text-align: center;
           padding: 10px 0;
           background:rgba(0, 0, 0, 0.3);
@@ -445,7 +449,7 @@ export default {
   .operating {
     position: fixed;
     top: 0;
-    left: 241px;
+    left: 250px;
     z-index: 999;
     background-color: #ffffff;
     padding: 10px;

@@ -41,7 +41,7 @@ export default (self) => {
         attrs: {
           body: {
             stroke: '#000000',
-            strokeWidth: 0.5,
+            strokeWidth: 0,
             fill: 'rgba(95,149,255,0.05)',
             refWidth: 1,
             refHeight: 1,
