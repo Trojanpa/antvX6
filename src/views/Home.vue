@@ -18,8 +18,8 @@
       </dl>
       <el-collapse v-model="nodesCollapse">
         <el-collapse-item :title="nodes.label" :name="nodes.type" v-for="(nodes, index) in nodesList" :key="nodes.type + index">
-          <div v-show="node.isShow" v-for="(node, index) in nodes.children" :key="node.shape + '' + index" class="node-warp">
-            <div class="node-card">
+          <div class="node-warp">
+            <div v-show="node.isShow" v-for="(node, index) in nodes.children" :key="node.shape + '' + index" class="node-card">
               <span class="svg-box">
                 <designer-img :img-type="node.data.actionType" class="img-wh" @mousedown="startDrag(node, $event)" />
               </span>
@@ -412,13 +412,14 @@ export default {
     }
     .node-warp {
       display: flex;
-      flex-wrap: wrap;
+      flex-flow: wrap;
       box-sizing: border-box;
       overflow: hidden;
 
       .node-card {
         display: inline-block;
-        width: 65px;
+        width: 60px;
+        margin: 2px;
         > .svg-box {
           display: inline-block;
           width: 100%;
