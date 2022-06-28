@@ -1,4 +1,5 @@
 # vue-antvx6-app
+antv x6练手项目
 
 ## Project setup
 ```
