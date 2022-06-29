@@ -61,6 +61,7 @@ import eventListener from "./graph/event";
 import bindKey from "./graph/bindKey";
 import { nodesList } from "./graph/nodesBar";
 import RightDrawer from './components/RightDrawer';
+import { preloadImage } from "@/utils/common";
 
 export default {
   components: {
@@ -125,6 +126,7 @@ export default {
           enabled: true,
           sharp: true,
           tolerance: 3,
+          // clean: false,
         },
         history: true, // 启动历史记录
         clipboard: true, // 剪切板
@@ -214,6 +216,7 @@ export default {
       eventListener(this, containerRef, FunctionExt);
       registerNodes(this);
       bindKey(this.graph);
+      this.redrawGraphBg();
     },
     // 显示连线节点
     showPorts (ports, show) {
@@ -356,7 +359,32 @@ export default {
     undoFn() {
       if (!this.canUndo) return
       this.graph.history.undo()
-    }
+    },
+    // 重绘画布背景
+    async redrawGraphBg() {
+      const path = 'https://s2.loli.net/2022/06/29/uj4zWIYa2rtd6VF.jpg';
+      const result = await preloadImage(path);
+      console.log(result);
+      const bgImage = result;
+      this.graph.drawBackground({
+        color: '#ccc',
+        image: path,
+        size: {
+          width: bgImage?.width,
+          height: bgImage?.height
+        },
+        position: {
+          x: 0,
+          y: 0
+        },
+      });
+      const cells = this.graph.getCells();
+      if (cells.length > 0) {
+        this.graph.centerContent();
+      } else {
+        this.graph.positionPoint({ x: 0, y: 0 }, 0, 0);
+      }
+    },
   }
 }
 </script>
