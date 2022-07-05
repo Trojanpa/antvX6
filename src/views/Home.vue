@@ -216,7 +216,7 @@ export default {
       eventListener(this, containerRef, FunctionExt);
       registerNodes(this);
       bindKey(this.graph);
-      this.redrawGraphBg();
+      // this.redrawGraphBg();
     },
     // 显示连线节点
     showPorts (ports, show) {
