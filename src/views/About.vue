@@ -1,11 +1,16 @@
 <template>
-  <div class="about-container">about</div>
+  <div class="about-container" :title="[[title]]">about</div>
 </template>
 
 <script>
 export default {
-  name: "About"
-}
+  name: 'About',
+  data() {
+    return {
+      title: '7777',
+    };
+  },
+};
 </script>
 
 <style scoped>
